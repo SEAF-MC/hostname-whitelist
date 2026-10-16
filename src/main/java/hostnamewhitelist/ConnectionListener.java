@@ -69,7 +69,6 @@ public class ConnectionListener {
                     .onlinePlayers(0)
                     .maximumPlayers(0)
                     .version(new ServerPing.Version(0, ""))
-                    .clearFavicon()
                     .build();
 
             event.setPing(updatedPing);
