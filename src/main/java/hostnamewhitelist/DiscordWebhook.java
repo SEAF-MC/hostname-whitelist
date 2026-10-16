@@ -190,7 +190,6 @@ public class DiscordWebhook {
     private String parseLocation(String jsonBody) {
         try {
             JsonObject obj = JsonParser.parseString(jsonBody).getAsJsonObject();
-            String city = obj.has("city") && !obj.get("city").isJsonNull() ? obj.get("city").getAsString() : null;
             String stateProv = obj.has("stateProv") && !obj.get("stateProv").isJsonNull() ? obj.get("stateProv").getAsString() : null;
             String countryName = obj.has("countryName") && !obj.get("countryName").isJsonNull() ? obj.get("countryName").getAsString() : null;
             String countryCode = obj.has("countryCode") && !obj.get("countryCode").isJsonNull() ? obj.get("countryCode").getAsString() : null;
@@ -199,23 +198,22 @@ public class DiscordWebhook {
                 return "Local / Private Network";
             }
 
-            StringBuilder sb = new StringBuilder();
-            if (city != null && !city.isBlank()) {
-                sb.append(city);
-            }
-            if (stateProv != null && !stateProv.isBlank()) {
-                if (!sb.isEmpty()) sb.append(", ");
-                sb.append(stateProv);
-            }
-            if (countryName != null && !countryName.isBlank()) {
-                if (!sb.isEmpty()) sb.append(", ");
-                sb.append(countryName);
-            } else if (countryCode != null && !countryCode.isBlank()) {
-                if (!sb.isEmpty()) sb.append(", ");
-                sb.append(countryCode);
+            // For the USA: format as "State, United States"
+            if ("US".equalsIgnoreCase(countryCode) || "United States".equalsIgnoreCase(countryName)) {
+                if (stateProv != null && !stateProv.isBlank()) {
+                    return stateProv + ", United States";
+                }
+                return "United States";
             }
 
-            return sb.isEmpty() ? "Unknown" : sb.toString();
+            // For other countries: format as just the country
+            if (countryName != null && !countryName.isBlank()) {
+                return countryName;
+            } else if (countryCode != null && !countryCode.isBlank()) {
+                return countryCode;
+            }
+
+            return "Unknown";
         } catch (Exception e) {
             return "Unknown";
         }

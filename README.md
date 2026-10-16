@@ -125,7 +125,7 @@ To use the Discord logging feature:
 3. Paste it into the `discord-webhook` field in `config.yml`.
 4. Enable `log-allowed-connections` or `log-denied-connections` as desired.
 
-Discord alerts display **Player**, **IP**, **Location** (powered by db-ip.com free GeoIP API), and **Hostname**. For players listed in `known-players.txt`, denied alerts omit IP and Location data.
+Discord alerts display **Player**, **IP**, **Location** (country, or `State, United States` via db-ip.com GeoIP API), and **Hostname**. For players listed in `known-players.txt`, denied alerts omit IP and Location data.
 
 # License
 
