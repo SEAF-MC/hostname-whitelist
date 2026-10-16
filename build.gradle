@@ -2,17 +2,21 @@ plugins {
     id 'java'
 }
 
-group = 'ua.org.uwu'
+group = 'hostnamewhitelist'
 version = '1.0.0'
 
 repositories {
     mavenCentral()
-    maven { url 'https://repo.papermc.io/repository/maven-public/' }
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
 }
 
 dependencies {
     compileOnly 'com.velocitypowered:velocity-api:3.4.0-SNAPSHOT'
     annotationProcessor 'com.velocitypowered:velocity-api:3.4.0-SNAPSHOT'
+
+    testImplementation 'com.velocitypowered:velocity-api:3.4.0-SNAPSHOT'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 java {
@@ -23,8 +27,9 @@ java {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+    options.compilerArgs.addAll(['-parameters', '-Xlint:deprecation'])
 }
 
-jar {
-    archiveClassifier.set('')
+test {
+    useJUnitPlatform()
 }

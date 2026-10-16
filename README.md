@@ -48,17 +48,17 @@ containing two files: `config.yml` and `hostnames.txt`.
 
 ### config.yml
 
-This file handles the general plugin settings.
+This file handles the general plugin settings. Both **MiniMessage** (e.g. `<red>`, `<bold>`) and **Legacy color codes** (e.g. `&c`, `§c`) are supported.
 
 ```yaml
 # Hostname Whitelist Configuration
 
 # Message shown when player connects with invalid hostname
 # Placeholders: {hostname}
-kick-message: "&cUnknown Server: {hostname}\n\n&7Please make sure you are using the correct IP"
+kick-message: "<red>Unknown Server: {hostname}\n\n<gray>Please make sure you are using the correct IP"
 
 # MOTD shown for invalid hostname pings
-invalid-motd: "&cInvalid Hostname. Please use the correct IP address."
+invalid-motd: "<red>Invalid Hostname. Please use the correct IP address."
 
 # Discord Webhook URL for logging connections
 # Leave empty or set to "YOUR_WEBHOOK_URL_HERE" to disable
@@ -70,6 +70,11 @@ log-allowed-connections: false
 # Whether to log denied connections (true/false)
 log-denied-connections: false
 ```
+
+## Commands & Permissions
+
+- `/hostnamewhitelist reload` - Reloads `config.yml` and `hostnames.txt` without restarting the proxy.
+  - **Permission**: `hostnamewhitelist.admin`
 
 ### hostnames.txt
 
