@@ -56,7 +56,7 @@ and **Hypixel** to protect their players.
 ## Configuration
 
 The plugin creates a configuration folder at `plugins/hostname-whitelist/`
-containing two files: `config.yml` and `hostnames.txt`.
+containing `config.yml`, `hostnames.txt`, and `known-players.txt`.
 
 ### config.yml
 
@@ -109,15 +109,23 @@ uwu.org.ua
 192.168.1.*
 ```
 
+### known-players.txt
+
+This file automatically records usernames of players who have successfully connected using an allowed hostname.
+
+**Privacy Protection (Anti-Doxxing):**
+If a player listed in `known-players.txt` accidentally connects with an invalid hostname or wrong IP, the Discord webhook alert will **only** include their username and the attempted hostname — redacting their IP address and location to prevent accidental doxxing.
+
 ## Discord Webhook
 
 To use the Discord logging feature:
 
-1. Create a Webhook in your Discord server (Server Settings -> Integrations ->
-   Webhooks).
+1. Create a Webhook in your Discord server (Server Settings -> Integrations -> Webhooks).
 2. Copy the Webhook URL.
 3. Paste it into the `discord-webhook` field in `config.yml`.
 4. Enable `log-allowed-connections` or `log-denied-connections` as desired.
+
+Discord alerts display **Player**, **IP**, **Location** (powered by db-ip.com free GeoIP API), and **Hostname**. For players listed in `known-players.txt`, denied alerts omit IP and Location data.
 
 # License
 

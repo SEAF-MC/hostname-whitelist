@@ -40,9 +40,13 @@ public class ConnectionListener {
                     username, playerIp, hostname.isEmpty() ? "<none>" : hostname);
 
             if (plugin.getConfig().isLogDeniedConnections()) {
-                plugin.getDiscordWebhook().sendDeniedConnection(username, hostname, playerIp);
+                boolean isKnown = plugin.getKnownPlayersManager().isKnown(username);
+                plugin.getDiscordWebhook().sendDeniedConnection(username, hostname, playerIp, isKnown);
             }
         } else {
+            // Track known player so they aren't doxxed if denied in the future
+            plugin.getKnownPlayersManager().addPlayer(username);
+
             if (plugin.getConfig().isLogAllowedConnections()) {
                 plugin.getDiscordWebhook().sendAllowedConnection(username, hostname, playerIp);
             }

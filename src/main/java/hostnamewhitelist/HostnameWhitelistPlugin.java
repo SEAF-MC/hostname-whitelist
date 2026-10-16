@@ -30,6 +30,7 @@ public class HostnameWhitelistPlugin {
     private final PluginContainer container;
 
     private PluginConfig config;
+    private KnownPlayersManager knownPlayersManager;
     private DiscordWebhook discordWebhook;
 
     @Inject
@@ -62,6 +63,7 @@ public class HostnameWhitelistPlugin {
 
         logger.info("Hostname Whitelist v{} enabled!", getVersion());
         logger.info("Loaded {} hostname pattern(s)", config.getHostnames().size());
+        logger.info("Loaded {} known player(s)", knownPlayersManager.getKnownPlayerCount());
         if (discordWebhook.isEnabled()) {
             logger.info("Discord webhook logging is active");
         }
@@ -76,20 +78,29 @@ public class HostnameWhitelistPlugin {
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
         shutdownDiscordWebhook();
+        if (knownPlayersManager != null) {
+            knownPlayersManager.shutdown();
+        }
     }
 
     /**
-     * Reloads configuration and webhook client.
+     * Reloads configuration, known players, and webhook client.
      */
     public synchronized void reload() {
         loadConfig();
         initDiscordWebhook();
-        logger.info("Hostname Whitelist reloaded! Loaded {} pattern(s)", config.getHostnames().size());
+        logger.info("Hostname Whitelist reloaded! Loaded {} pattern(s) and {} known player(s)",
+                config.getHostnames().size(), knownPlayersManager.getKnownPlayerCount());
     }
 
     private void loadConfig() {
         this.config = new PluginConfig(dataDirectory, logger);
         this.config.load();
+
+        if (this.knownPlayersManager == null) {
+            this.knownPlayersManager = new KnownPlayersManager(dataDirectory, logger);
+        }
+        this.knownPlayersManager.load();
     }
 
     private void initDiscordWebhook() {
@@ -109,6 +120,10 @@ public class HostnameWhitelistPlugin {
 
     public PluginConfig getConfig() {
         return config;
+    }
+
+    public KnownPlayersManager getKnownPlayersManager() {
+        return knownPlayersManager;
     }
 
     public Logger getLogger() {

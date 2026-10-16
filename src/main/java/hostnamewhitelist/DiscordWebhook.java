@@ -5,9 +5,12 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.slf4j.Logger;
 
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -15,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -35,6 +39,9 @@ public class DiscordWebhook {
     // Cooldown cache: username (lowercase) -> Boolean with 10-minute expiry and 5000 max size
     private final Cache<String, Boolean> cooldownCache;
 
+    // GeoIP location cache: ip -> resolved location string with 1-hour expiry
+    private final Cache<String, String> locationCache;
+
     public DiscordWebhook(String webhookUrl, Logger logger) {
         this.webhookUrl = webhookUrl != null ? webhookUrl.trim() : "";
         this.logger = logger;
@@ -45,6 +52,10 @@ public class DiscordWebhook {
         this.cooldownCache = Caffeine.newBuilder()
                 .expireAfterWrite(10, TimeUnit.MINUTES)
                 .maximumSize(5000)
+                .build();
+        this.locationCache = Caffeine.newBuilder()
+                .expireAfterWrite(1, TimeUnit.HOURS)
+                .maximumSize(2000)
                 .build();
     }
 
@@ -61,9 +72,6 @@ public class DiscordWebhook {
         }
     }
 
-    /**
-     * Checks if the user is on cooldown. If not, places them on cooldown and returns true.
-     */
     private boolean checkAndUpdateCooldown(String username) {
         if (username == null || username.isBlank()) {
             return true;
@@ -72,35 +80,156 @@ public class DiscordWebhook {
         return cooldownCache.asMap().putIfAbsent(key, Boolean.TRUE) == null;
     }
 
-    public void sendDeniedConnection(String username, String hostname, String ip) {
+    /**
+     * Sends a denied connection notification.
+     * If the player has connected before, IP and Location are omitted to prevent accidental doxxing.
+     *
+     * @param username the connecting player username
+     * @param hostname the virtual host used
+     * @param ip the remote IP address
+     * @param isKnownPlayer whether the player has previously connected with a valid hostname
+     */
+    public void sendDeniedConnection(String username, String hostname, String ip, boolean isKnownPlayer) {
         if (!enabled || !checkAndUpdateCooldown(username)) {
             return;
         }
 
-        String description = String.format("**Player:** `%s`\n**Hostname:** `%s`\n**IP:** `%s`",
-                username,
-                (hostname == null || hostname.isEmpty()) ? "none" : hostname,
-                ip);
+        String safeHostname = (hostname == null || hostname.isEmpty()) ? "none" : hostname;
 
-        sendAsync(buildPayload("🚫 Connection Denied", description, COLOR_DENIED));
+        if (isKnownPlayer) {
+            String description = String.format(
+                    "**Player:** `%s`\n**Hostname:** `%s`",
+                    username,
+                    safeHostname
+            );
+            sendAsync(buildPayload("🚫 Connection Denied", description, COLOR_DENIED));
+            return;
+        }
+
+        resolveLocationAsync(ip).thenAccept(location -> {
+            String description = String.format(
+                    "**Player:** `%s`\n**IP:** `%s`\n**Location:** `%s`\n**Hostname:** `%s`",
+                    username,
+                    ip,
+                    location,
+                    safeHostname
+            );
+            sendAsync(buildPayload("🚫 Connection Denied", description, COLOR_DENIED));
+        });
     }
 
+    /**
+     * Sends an allowed connection notification with player, IP, location, and hostname.
+     *
+     * @param username the connecting player username
+     * @param hostname the virtual host used
+     * @param ip the remote IP address
+     */
     public void sendAllowedConnection(String username, String hostname, String ip) {
         if (!enabled || !checkAndUpdateCooldown(username)) {
             return;
         }
 
-        String description = String.format("**Player:** `%s`\n**Hostname:** `%s`\n**IP:** `%s`",
-                username,
-                (hostname == null || hostname.isEmpty()) ? "none" : hostname,
-                ip);
+        String safeHostname = (hostname == null || hostname.isEmpty()) ? "none" : hostname;
 
-        sendAsync(buildPayload("✅ Connection Allowed", description, COLOR_ALLOWED));
+        resolveLocationAsync(ip).thenAccept(location -> {
+            String description = String.format(
+                    "**Player:** `%s`\n**IP:** `%s`\n**Location:** `%s`\n**Hostname:** `%s`",
+                    username,
+                    ip,
+                    location,
+                    safeHostname
+            );
+            sendAsync(buildPayload("✅ Connection Allowed", description, COLOR_ALLOWED));
+        });
     }
 
     /**
-     * Builds Discord webhook embed payload using Gson.
+     * Resolves the geographical location for an IP address asynchronously using db-ip.com free API.
      */
+    private CompletableFuture<String> resolveLocationAsync(String ip) {
+        if (ip == null || ip.isBlank() || ip.equals("unknown")) {
+            return CompletableFuture.completedFuture("Unknown");
+        }
+
+        String cached = locationCache.getIfPresent(ip);
+        if (cached != null) {
+            return CompletableFuture.completedFuture(cached);
+        }
+
+        if (isPrivateOrLocal(ip)) {
+            String local = "Local / Private Network";
+            locationCache.put(ip, local);
+            return CompletableFuture.completedFuture(local);
+        }
+
+        try {
+            String url = "https://api.db-ip.com/v2/free/" + URLEncoder.encode(ip, StandardCharsets.UTF_8);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("User-Agent", "HostnameWhitelist-Velocity")
+                    .timeout(Duration.ofSeconds(3))
+                    .GET()
+                    .build();
+
+            return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenApply(response -> {
+                        if (response.statusCode() == 200) {
+                            String loc = parseLocation(response.body());
+                            locationCache.put(ip, loc);
+                            return loc;
+                        }
+                        return "Unknown";
+                    })
+                    .exceptionally(t -> "Unknown");
+        } catch (Exception e) {
+            return CompletableFuture.completedFuture("Unknown");
+        }
+    }
+
+    private String parseLocation(String jsonBody) {
+        try {
+            JsonObject obj = JsonParser.parseString(jsonBody).getAsJsonObject();
+            String city = obj.has("city") && !obj.get("city").isJsonNull() ? obj.get("city").getAsString() : null;
+            String stateProv = obj.has("stateProv") && !obj.get("stateProv").isJsonNull() ? obj.get("stateProv").getAsString() : null;
+            String countryName = obj.has("countryName") && !obj.get("countryName").isJsonNull() ? obj.get("countryName").getAsString() : null;
+            String countryCode = obj.has("countryCode") && !obj.get("countryCode").isJsonNull() ? obj.get("countryCode").getAsString() : null;
+
+            if ("ZZ".equalsIgnoreCase(countryCode)) {
+                return "Local / Private Network";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            if (city != null && !city.isBlank()) {
+                sb.append(city);
+            }
+            if (stateProv != null && !stateProv.isBlank()) {
+                if (!sb.isEmpty()) sb.append(", ");
+                sb.append(stateProv);
+            }
+            if (countryName != null && !countryName.isBlank()) {
+                if (!sb.isEmpty()) sb.append(", ");
+                sb.append(countryName);
+            } else if (countryCode != null && !countryCode.isBlank()) {
+                if (!sb.isEmpty()) sb.append(", ");
+                sb.append(countryCode);
+            }
+
+            return sb.isEmpty() ? "Unknown" : sb.toString();
+        } catch (Exception e) {
+            return "Unknown";
+        }
+    }
+
+    private static boolean isPrivateOrLocal(String ip) {
+        try {
+            InetAddress addr = InetAddress.getByName(ip);
+            return addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress() || addr.isAnyLocalAddress();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private String buildPayload(String title, String description, int color) {
         JsonObject embed = new JsonObject();
         embed.addProperty("title", title);
@@ -153,6 +282,7 @@ public class DiscordWebhook {
 
     public void shutdown() {
         cooldownCache.invalidateAll();
+        locationCache.invalidateAll();
         httpClient.close();
     }
 
