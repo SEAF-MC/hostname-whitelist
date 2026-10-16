@@ -18,7 +18,7 @@ import java.nio.file.Path;
 @Plugin(
         id = "hostname-whitelist",
         name = "Hostname Whitelist",
-        version = "1.0.0",
+        version = "2.0.0",
         authors = {"uwu.org.ua"},
         description = "Whitelist hostnames for connecting to the server"
 )
@@ -115,7 +115,7 @@ public class HostnameWhitelistPlugin {
     }
 
     public String getVersion() {
-        return container.getDescription().getVersion().orElse("1.0.0");
+        return container.getDescription().getVersion().orElse("2.0.0");
     }
 
     public PluginConfig getConfig() {

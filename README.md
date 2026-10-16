@@ -1,14 +1,14 @@
 ## Fork Notes
 
-Basicaly a complete AI rewrite of hostname-witelist. This, like all my other AI projects, is intended for private use but I will do my best to provide support if needed.
+Basically a complete AI rewrite of hostname-whitelist. This, like all my other AI projects, is intended for private use but I will do my best to provide support if needed.
 
-It's been so long since I forked this that I kinda forgot all of what was chnaged/added. But here is a list of my best guesses:
+It's been so long since I forked this that I kinda forgot all of what was changed/added. But here is a list of my best guesses:
  - Everything has been translated to English.
  - The DC embed was altered to be: Username, IP, Location, Hostname.
- - A 10 minuite per player cooldown on denied notis.
- - Previous correctly connected player names are stored to prevent axidental doxxing.
+ - A 10 minute per player cooldown on denied notis.
+ - Previous correctly connected player names are stored to prevent accidental doxxing.
 
- Note: While this might work with the original config I would reccommend deleting it before switching just to be sure.
+ Note: While this might work with the original config I would recommend deleting it before switching just to be sure.
 
 # Hostname Whitelist
 
