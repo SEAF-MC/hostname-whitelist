@@ -64,7 +64,7 @@ public class DiscordWebhook {
     /**
      * Checks if the user is on cooldown. If not, places them on cooldown and returns true.
      */
-    boolean checkAndUpdateCooldown(String username) {
+    private boolean checkAndUpdateCooldown(String username) {
         if (username == null || username.isBlank()) {
             return true;
         }
@@ -101,7 +101,7 @@ public class DiscordWebhook {
     /**
      * Builds Discord webhook embed payload using Gson.
      */
-    String buildPayload(String title, String description, int color) {
+    private String buildPayload(String title, String description, int color) {
         JsonObject embed = new JsonObject();
         embed.addProperty("title", title);
         embed.addProperty("description", description);

@@ -180,7 +180,7 @@ public class PluginConfig {
      * @param patternStr the input wildcard string
      * @return the compiled regex Pattern
      */
-    public static Pattern createPattern(String patternStr) {
+    private static Pattern createPattern(String patternStr) {
         StringBuilder regex = new StringBuilder("^");
         String[] tokens = patternStr.split("\\*", -1);
         for (int i = 0; i < tokens.length; i++) {
